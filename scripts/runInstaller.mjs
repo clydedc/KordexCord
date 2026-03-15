@@ -18,20 +18,15 @@
 
 import "./checkNodeVersion.js";
 
-import { execFileSync, execSync } from "child_process";
-import { createWriteStream, existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
+import { execFileSync } from "child_process";
+import { createWriteStream, existsSync, mkdirSync } from "fs";
 import { dirname, join } from "path";
 import { Readable } from "stream";
 import { finished } from "stream/promises";
 import { fileURLToPath } from "url";
 
-const BASE_URL = "https://github.com/clydedc/KordexCord/releases/latest/download/";
-const FALLBACK_URL = "https://github.com/clydedc/KordexCord/releases/latest/download/";
-const INSTALLER_PATH_DARWIN = "Equilotl.app/Contents/MacOS/Equilotl";
-
 const BASE_DIR = join(dirname(fileURLToPath(import.meta.url)), "..");
 const FILE_DIR = join(BASE_DIR, "dist", "Installer");
-const ETAG_FILE = join(FILE_DIR, "etag.txt");
 
 function getFilename() {
     switch (process.platform) {
@@ -46,99 +41,60 @@ function getFilename() {
     }
 }
 
+// URL distante optionnelle vers ton installateur Go compilé.
+// Peut être surchargée via KORDEXCORD_INSTALLER_URL.
+const REMOTE_INSTALLER_URL = process.env.KORDEXCORD_INSTALLER_URL
+    || "https://github.com/clydedc/kordexcord-installer-go/releases/latest/download/kordexcord-cli.exe";
+
 function getLocalInstallerPath() {
     if (process.env.KORDEXCORD_INSTALLER_PATH) {
         const p = process.env.KORDEXCORD_INSTALLER_PATH.trim();
         if (existsSync(p)) return p;
     }
     const filename = getFilename();
-    const inDist = join(FILE_DIR, process.platform === "darwin" ? "Equilotl" : filename);
+    const inDist = join(FILE_DIR, filename);
     if (existsSync(inDist)) return inDist;
     return null;
 }
 
 async function ensureBinary() {
-    const filename = getFilename();
-    const outputFile = process.platform === "darwin"
-        ? join(FILE_DIR, "Equilotl")
-        : join(FILE_DIR, filename);
-
     const local = getLocalInstallerPath();
     if (local) {
         console.log("Using local installer:", local);
         return local;
     }
 
-    console.log("Downloading " + filename);
+    // Aucun binaire local, on tente de télécharger celui de ta release GitHub.
     mkdirSync(FILE_DIR, { recursive: true });
 
-    const etag = existsSync(outputFile) && existsSync(ETAG_FILE)
-        ? readFileSync(ETAG_FILE, "utf-8")
-        : null;
+    const filename = getFilename();
+    const targetPath = join(FILE_DIR, filename);
+    const url = REMOTE_INSTALLER_URL;
 
-    const urlsToTry = [
-        { url: BASE_URL, label: "KordexCord" },
-        { url: FALLBACK_URL, label: "Equicord (fallback)" }
-    ];
-    let res;
-    let lastError;
-    for (const { url: baseUrl, label } of urlsToTry) {
-        res = await fetch(baseUrl + filename, {
-            headers: {
-                "User-Agent": "Kordexcord (https://github.com/KordexCord/KordexCord)",
-                "If-None-Match": etag
-            }
-        });
-        if (res.status === 304) {
-            console.log("Up to date, not redownloading!");
-            return outputFile;
+    console.log("No local installer found. Downloading from:", url);
+
+    const res = await fetch(url, {
+        headers: {
+            "User-Agent": "Kordexcord (https://github.com/KordexCord/KordexCord)"
         }
-        if (res.ok) {
-            if (label === "Equicord (fallback)")
-                console.log("KordexCord release not found, using Equicord installer.");
-            break;
-        }
-        lastError = new Error(`Failed to download installer: ${res.status} ${res.statusText} from ${baseUrl}`);
-    }
-    if (!res.ok)
-        throw lastError;
+    });
 
-    writeFileSync(ETAG_FILE, res.headers.get("etag"));
-
-    if (process.platform === "darwin") {
-        console.log("Unzipping...");
-        const zip = new Uint8Array(await res.arrayBuffer());
-
-        const ff = await import("fflate");
-        const bytes = ff.unzipSync(zip, {
-            filter: f => f.name === INSTALLER_PATH_DARWIN
-        })[INSTALLER_PATH_DARWIN];
-
-        writeFileSync(outputFile, bytes, { mode: 0o755 });
-
-        console.log("Overriding security policy for installer binary (this is required to run it)");
-        console.log("xattr might error, that's okay");
-
-        const logAndRun = cmd => {
-            console.log("Running", cmd);
-            try {
-                execSync(cmd);
-            } catch { }
-        };
-        logAndRun(`sudo spctl --add '${outputFile}' --label "Equilotl"`);
-        logAndRun(`sudo xattr -d com.apple.quarantine '${outputFile}'`);
-    } else {
-        // WHY DOES NODE FETCH RETURN A WEB STREAM OH MY GOD
-        const body = Readable.fromWeb(res.body);
-        await finished(body.pipe(createWriteStream(outputFile, {
-            mode: 0o755,
-            autoClose: true
-        })));
+    if (!res.ok || !res.body) {
+        throw new Error(
+            `Échec du téléchargement de l'installateur Kordexcord (${res.status} ${res.statusText}).\n` +
+            `Définis KORDEXCORD_INSTALLER_PATH vers ton .exe ou place ${filename} dans ${FILE_DIR}.`
+        );
     }
 
-    console.log("Finished downloading!");
+    const body = Readable.fromWeb(res.body);
+    await finished(body.pipe(createWriteStream(targetPath, {
+        mode: 0o755,
+        autoClose: true
+    })));
 
-    return outputFile;
+    console.log("Finished downloading installer to", targetPath);
+
+    return targetPath;
 }
 
 
