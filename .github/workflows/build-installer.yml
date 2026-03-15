@@ -1,8 +1,13 @@
 name: Build Kordexcord Installer
 
 on:
+  # Build manuellement depuis l’onglet Actions
   workflow_dispatch:
+
+  # Build automatiquement à chaque push sur main et à chaque tag v*
   push:
+    branches:
+      - main
     tags:
       - "v*"
 
