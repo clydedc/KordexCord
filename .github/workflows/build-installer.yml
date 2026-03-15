@@ -1,41 +1,38 @@
-name: Build Kordexcord CLI
+name: Build Kordexcord installer
 
 on:
-  # Build + publish l'exe à chaque release GitHub
-  release:
-    types: [published]
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
 
 jobs:
-  build-windows-cli:
+  build-installer:
     runs-on: windows-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'pnpm'
+          node-version: 20
+          cache: pnpm
 
       - name: Install pnpm
         run: npm install -g pnpm
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Install deps
+        run: pnpm install
+        working-directory: kordexcord-installer
 
-      - name: Build Kordexcord CLI exe
-        run: pnpm run build:exe
+      - name: Build installer
+        run: pnpm run dist
+        working-directory: kordexcord-installer
 
-      - name: Vérifier que l'exe existe
-        run: |
-          if (!(Test-Path 'dist/Installer/KordexcordCli.exe')) {
-            Write-Error 'dist/Installer/KordexcordCli.exe est introuvable après build:exe'
-          }
-
-      - name: Upload exe to release
-        uses: softprops/action-gh-release@v2
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
         with:
-          files: |
-            dist/Installer/KordexcordCli.exe
+          name: KordexcordCli
+          path: kordexcord-installer/dist_build/**
