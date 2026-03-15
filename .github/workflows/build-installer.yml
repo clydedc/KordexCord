@@ -4,12 +4,10 @@ on:
   # Build manuellement depuis l’onglet Actions
   workflow_dispatch:
 
-  # Build automatiquement à chaque push sur main et à chaque tag v*
-  push:
-    branches:
-      - main
-    tags:
-      - "v*"
+  # (Désactivé pour l’instant) Build automatique à chaque push
+  # push:
+  #   branches:
+  #     - main
 
 jobs:
   build-installer:
@@ -23,26 +21,14 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          # pas de cache pnpm ici pour éviter d'appeler pnpm avant installation
+          cache: "pnpm"
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
         with:
-          # ne pas fixer la version ici, pnpm/action-setup utilisera
-          # automatiquement la version déclarée dans package.json (pnpm@10.22.0)
           run_install: false
 
-      - name: Install dependencies
-        run: pnpm install
-        working-directory: kordexcord-installer
-
-      - name: Build installer
-        run: pnpm run dist
-        working-directory: kordexcord-installer
-
-      - name: Upload installer artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: KordexcordCli
-          path: |
-            kordexcord-installer/dist_build/**/*.exe
+      - name: Skip (no kordexcord-installer project yet)
+        run: |
+          echo "Aucun projet kordexcord-installer dans le dépôt."
+          echo "Ce workflow est un placeholder et ne fait rien pour l’instant."
