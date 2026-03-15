@@ -26,7 +26,7 @@ import { finished } from "stream/promises";
 import { fileURLToPath } from "url";
 
 const BASE_URL = "https://github.com/KordexCord/Equilotl/releases/latest/download/";
-const FALLBACK_URL = "https://github.com/Equicord/Equilotl/releases/latest/download/";
+const FALLBACK_URL = "https://github.com/KordexCord/Equilotl/releases/latest/download/";
 const INSTALLER_PATH_DARWIN = "Equilotl.app/Contents/MacOS/Equilotl";
 
 const BASE_DIR = join(dirname(fileURLToPath(import.meta.url)), "..");
