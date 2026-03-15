@@ -1,34 +1,16 @@
-name: Build Kordexcord Installer
+name: Build Kordexcord CLI
 
 on:
-  # Build manuellement depuis l’onglet Actions
   workflow_dispatch:
 
-  # (Désactivé pour l’instant) Build automatique à chaque push
-  # push:
-  #   branches:
-  #     - main
-
 jobs:
-  build-installer:
-    runs-on: windows-latest
-
+  noop:
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: "pnpm"
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          run_install: false
-
-      - name: Skip (no kordexcord-installer project yet)
+      - name: Placeholder
         run: |
-          echo "Aucun projet kordexcord-installer dans le dépôt."
-          echo "Ce workflow est un placeholder et ne fait rien pour l’instant."
+          echo "Aucun build automatique configuré pour l’instant."
+          echo "Le job réussit juste pour ne pas bloquer tes pushes."
